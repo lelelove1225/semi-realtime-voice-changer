@@ -2,15 +2,23 @@ import queue
 import numpy as np
 import sounddevice as sd
 from faster_whisper import WhisperModel
+import os
+
+# cudnn の dll を明示的にロードする
+# これをしないと cudnn のエラーが発生する
+os.add_dll_directory(
+    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.4\\bin"
+)
+
 
 model = WhisperModel(
     model_size_or_path="deepdml/faster-whisper-large-v3-turbo-ct2",
-    device="cpu",
+    device="cuda",
     compute_type="int8",
 )
 
 fs = 16000
-selected_device_index = 4  # 環境に合わせて変更
+selected_device_index = 1  # 環境に合わせて変更
 audio_queue = queue.Queue()
 
 
@@ -40,7 +48,7 @@ try:
 
         # バッファが十分溜まったら transcribe
         if len(audio_buffer) >= buffer_size:
-            segments, info = model.transcribe(audio_buffer, beam_size=3, language="ja")
+            segments, info = model.transcribe(audio_buffer, beam_size=5, language="ja")
             print(
                 f"Detected language '{info.language}' with probability {info.language_probability}"
             )
@@ -48,7 +56,7 @@ try:
             for segment in segments:
                 print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
 
-            # 一度使ったバッファは空にする（あるいは一部を残す手法もある）
+            # 一度使ったバッファは空にする
             audio_buffer = np.array([], dtype=np.float32)
 
 except KeyboardInterrupt:
