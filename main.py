@@ -14,7 +14,7 @@ os.add_dll_directory(
 model = WhisperModel(
     model_size_or_path="deepdml/faster-whisper-large-v3-turbo-ct2",
     device="cuda",
-    compute_type="int8",
+    compute_type="float32",
 )
 
 fs = 16000
@@ -37,7 +37,7 @@ stream.start()
 print("Recording... Press Ctrl+C to stop.")
 
 try:
-    buffer_size = fs * 2  # 2秒分のはず
+    buffer_size = fs * 3  # 2秒分のはず
     audio_buffer = np.array([], dtype=np.float32)
 
     while True:
@@ -48,9 +48,12 @@ try:
 
         # バッファが十分溜まったら transcribe
         if len(audio_buffer) >= buffer_size:
-            segments, info = model.transcribe(audio_buffer, beam_size=5, language="ja")
-            print(
-                f"Detected language '{info.language}' with probability {info.language_probability}"
+            segments, info = model.transcribe(
+                audio_buffer,
+                beam_size=15,
+                language="ja",
+                vad_filter=True,
+                temperature=0.1,
             )
 
             for segment in segments:
