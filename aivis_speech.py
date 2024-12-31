@@ -1,4 +1,5 @@
 import io
+import os
 import logging
 import httpx
 import sounddevice as sd
@@ -7,6 +8,7 @@ from urllib.parse import urlencode
 
 # ロギング設定
 logging.basicConfig(level=logging.INFO)
+output_file = os.path.abspath("output.pcm")
 
 
 async def create_query(text: str, speaker: str) -> dict:
@@ -60,6 +62,11 @@ async def get_wav_and_play(text: str, speaker: str):
             audio_buffer = io.BytesIO(response.content)
             audio_data, sample_rate = sf.read(audio_buffer)  # 音声データを読み込む
 
+            # PCMデータをファイルに直接追記
+            with open(output_file, "ab") as file:
+                file.write(audio_data.tobytes())
+                logging.info(f"PCM data appended to {output_file}")
+
             # 音声再生
             logging.info("Starting audio playback...")
             sd.play(audio_data, samplerate=sample_rate)
@@ -76,11 +83,15 @@ async def get_wav_and_play(text: str, speaker: str):
 
 # テスト用の関数
 if __name__ == "__main__":
-    import asyncio
+    # import asyncio
 
-    logging.info("Starting aivis_speech test...")
-    text = "こんにちは、リアルタイム音声合成のテストです。"
-    speaker = "888753762"
+    # logging.info("Starting aivis_speech test...")
+    # text = "こんにちは、リアルタイム音声合成のテストです。"
+    # speaker = "888753762"
 
-    asyncio.run(get_wav_and_play(text, speaker))
-    # logging.info("Test completed.")
+    # asyncio.run(get_wav_and_play(text, speaker))
+    # # logging.info("Test completed.")
+    import os
+
+    logging.info(f"Current Directory: {os.getcwd()}")
+    logging.info(f"File writable: {os.access('.', os.W_OK)}")
