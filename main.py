@@ -3,6 +3,9 @@ import numpy as np
 import sounddevice as sd
 from faster_whisper import WhisperModel
 import os
+import requests
+
+aivis_url = "http://127.0.0.1:9000/synthesis"
 
 # cudnn の dll を明示的にロードする
 # これをしないと cudnn のエラーが発生する
@@ -37,7 +40,7 @@ stream.start()
 print("Recording... Press Ctrl+C to stop.")
 
 try:
-    buffer_size = fs * 3  # 2秒分のはず
+    buffer_size = fs * 3  # 3秒分のはず
     audio_buffer = np.array([], dtype=np.float32)
 
     while True:
@@ -50,14 +53,15 @@ try:
         if len(audio_buffer) >= buffer_size:
             segments, info = model.transcribe(
                 audio_buffer,
-                beam_size=15,
+                beam_size=20,
                 language="ja",
                 vad_filter=True,
-                temperature=0.1,
+                temperature=0.0,
             )
 
             for segment in segments:
                 print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
+                requests.post(aivis_url, json={"text": segment.text})
 
             # 一度使ったバッファは空にする
             audio_buffer = np.array([], dtype=np.float32)

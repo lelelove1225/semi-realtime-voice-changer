@@ -9,16 +9,6 @@ from urllib.parse import urlencode
 logging.basicConfig(level=logging.INFO)
 
 
-# BlackholeのデバイスIDを取得
-def get_blackhole_device_id():
-    devices = sd.query_devices()
-    for idx, device in enumerate(devices):
-        if "BlackHole" in device["name"]:  # Blackholeデバイスを検索
-            print(f"Blackhole device found: index={idx}, name={device['name']}")
-            return idx
-    raise ValueError("Blackhole audio device not found!")
-
-
 async def create_query(text: str, speaker: str) -> dict:
     """
     音声合成用のクエリデータを生成する関数。
@@ -72,9 +62,7 @@ async def get_wav_and_play(text: str, speaker: str):
 
             # 音声再生
             logging.info("Starting audio playback...")
-            sd.play(
-                audio_data, samplerate=sample_rate, device=get_blackhole_device_id()
-            )
+            sd.play(audio_data, samplerate=sample_rate)
             sd.wait()  # 再生が終わるまで待機
             logging.info("Audio playback complete")
             return {"status": "ok"}
@@ -88,12 +76,11 @@ async def get_wav_and_play(text: str, speaker: str):
 
 # テスト用の関数
 if __name__ == "__main__":
-    # import asyncio
-    #
-    # logging.info("Starting aivis_speech test...")
-    # text = "こんにちは、リアルタイム音声合成のテストです。"
-    # speaker = "888753762"
-    #
-    # asyncio.run(get_wav_and_play(text, speaker))
+    import asyncio
+
+    logging.info("Starting aivis_speech test...")
+    text = "こんにちは、リアルタイム音声合成のテストです。"
+    speaker = "888753762"
+
+    asyncio.run(get_wav_and_play(text, speaker))
     # logging.info("Test completed.")
-    get_blackhole_device_id()
