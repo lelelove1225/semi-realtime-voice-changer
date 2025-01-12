@@ -21,6 +21,6 @@ async def synthesis(query: Query, background_tasks: BackgroundTasks):
     text = query.text
     print(f"Received text: {text}")
     background_tasks.add_task(
-        asyncio.run, aivis_speech.get_wav_and_play(text, "888753762")
+        asyncio.run, aivis_speech.save_pcm_and_play(text, "888753762", "output.pcm")
     )
     return {"status": "ok"}

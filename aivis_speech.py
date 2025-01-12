@@ -4,11 +4,18 @@ import logging
 import httpx
 import sounddevice as sd
 import soundfile as sf
+import numpy as np
 from urllib.parse import urlencode
 
 # ロギング設定
 logging.basicConfig(level=logging.INFO)
-output_file = os.path.abspath("output.pcm")
+
+# 出力ファイル
+output_pcm = os.path.abspath("output.pcm")  # PCMファイルの保存先
+output_wav = os.path.abspath("output.wav")  # 最終的なWAVファイルの保存先
+
+# サンプルレートをグローバル変数で記録
+global_sample_rate = 44100  # デフォルト値
 
 
 async def create_query(text: str, speaker: str) -> dict:
@@ -33,11 +40,12 @@ async def create_query(text: str, speaker: str) -> dict:
         return {}
 
 
-async def get_wav_and_play(text: str, speaker: str):
+async def save_pcm_and_play(text: str, speaker: str, output_pcm: str):
     """
-    音声合成APIからデータを取得し、リアルタイムで再生する関数。
+    音声合成APIからデータを取得し、PCM形式で保存しつつ再生する関数。
     """
-    logging.info(f"get_wav_and_play start, text: {text}")
+    global global_sample_rate  # グローバル変数でサンプルレートを記録
+    logging.info(f"save_pcm_and_play start, text: {text}")
     base_url = "http://127.0.0.1:10101/synthesis"
     headers = {"accept": "audio/wav", "Content-Type": "application/json"}
     timeout = 60
@@ -60,12 +68,21 @@ async def get_wav_and_play(text: str, speaker: str):
 
             # バッファリングして音声データをメモリ上に保持
             audio_buffer = io.BytesIO(response.content)
-            audio_data, sample_rate = sf.read(audio_buffer)  # 音声データを読み込む
+            audio_data, sample_rate = sf.read(
+                audio_buffer, dtype="int16"
+            )  # PCM形式で読み込む
 
-            # PCMデータをファイルに直接追記
-            with open(output_file, "ab") as file:
+            # サンプルレートを記録
+            if global_sample_rate is None:
+                global_sample_rate = sample_rate
+                logging.info(f"Sample rate set to {global_sample_rate} Hz")
+            elif global_sample_rate != sample_rate:
+                raise ValueError("Inconsistent sample rate detected!")
+
+            # PCMデータを追記保存
+            with open(output_pcm, "ab") as file:
                 file.write(audio_data.tobytes())
-                logging.info(f"PCM data appended to {output_file}")
+                logging.info(f"PCM data appended to {output_pcm}")
 
             # 音声再生
             logging.info("Starting audio playback...")
@@ -81,17 +98,41 @@ async def get_wav_and_play(text: str, speaker: str):
         return {"status": "error", "message": "Playback failed"}
 
 
-# テスト用の関数
-if __name__ == "__main__":
-    # import asyncio
+def convert_pcm_to_wav(pcm_file: str, output_wav: str, channels: int = 1):
+    """
+    PCMデータをWAV形式に変換する関数。
+    """
+    global global_sample_rate
+    if global_sample_rate is None:
+        raise ValueError("Sample rate not set. Ensure audio data has been processed.")
 
-    # logging.info("Starting aivis_speech test...")
-    # text = "こんにちは、リアルタイム音声合成のテストです。"
+    with open(pcm_file, "rb") as f:
+        # PCMデータを読み込み
+        pcm_data = np.frombuffer(f.read(), dtype=np.int16)
+
+    # モノラルの場合は2次元配列に整形
+    if channels == 1:
+        pcm_data = pcm_data.reshape(-1, 1)
+
+    # WAVファイルとして保存
+    sf.write(output_wav, pcm_data, samplerate=global_sample_rate)
+    logging.info(f"Converted {pcm_file} to {output_wav}")
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    # texts = [
+    #     "こんにちは、リアルタイム音声合成のテストです。",
+    #     "この音声はPCM形式で保存されています。",
+    #     "最後にWAV形式に変換します。",
+    # ]
     # speaker = "888753762"
 
-    # asyncio.run(get_wav_and_play(text, speaker))
-    # # logging.info("Test completed.")
-    import os
+    # # 各テキストを処理し、PCMファイルに追記
+    # for text in texts:
+    #     asyncio.run(save_pcm_and_play(text, speaker, output_pcm))
 
-    logging.info(f"Current Directory: {os.getcwd()}")
-    logging.info(f"File writable: {os.access('.', os.W_OK)}")
+    # PCMファイルをWAV形式に変換
+    convert_pcm_to_wav("output.pcm", "output.wav", channels=1)
+    logging.info("Processing completed.")
